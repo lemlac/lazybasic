@@ -2,35 +2,35 @@ module StringMap = Map.Make(String)
 
 type expr =
     | ExprValue of value
-    | ExprVar of string
-    | ExprOp of op
-    | ExprCmd of cmd
+    | ExprVar   of string
+    | ExprOp    of op
+    | ExprCmd   of cmd
 and value =
-    | ValWord of string
+    | ValWord   of string
     | ValString of string
-    | ValNum of float
+    | ValNum    of float
 and op =
     | OpAdd of expr * expr
     | OpSub of expr * expr
     | OpMul of expr * expr
     | OpDiv of expr * expr
     | OpMod of expr * expr
-    | OpEq of expr * expr
+    | OpEq  of expr * expr
     | OpNeq of expr * expr
-    | OpLt of expr * expr
-    | OpGt of expr * expr
+    | OpLt  of expr * expr
+    | OpGt  of expr * expr
     | OpLeq of expr * expr
     | OpGeq of expr * expr
     | OpAnd of expr * expr
-    | OpOr of expr * expr
+    | OpOr  of expr * expr
     | OpNot of expr
 and cmd =
-    | CmdEcho of expr
-    | CmdLet of string * expr
-    | CmdIf of expr * (expr list) * (expr list)
-    | CmdFor of string * expr * expr * (expr list)
+    | CmdEcho    of expr
+    | CmdLet     of string * expr
+    | CmdIf      of expr * (expr list) * (expr list)
+    | CmdFor     of string * expr * expr * (expr list)
     | CmdForEach of string * expr * (expr list)
-    | CmdWhile of expr * (expr list)
+    | CmdWhile   of expr * (expr list)
     | CmdBegin
     | CmdEnd
 
@@ -76,37 +76,49 @@ and cmd_to_string cmd =
     | CmdBegin -> "CmdBegin"
     | CmdEnd   -> "CmdEnd"
 
-let rec process_line line tokens =
+let rec parse_line line tokens =
     match line with
     | [] -> tokens
     | h::t -> 
         match h with
         | 'a' .. 'z'
-        | 'A' .. 'Z' -> process_word (String.make 1 h) t tokens
-        | '"' | '\'' -> process_string h "" t tokens
-        | _ -> process_line t tokens
-and process_word word line tokens =
+        | 'A' .. 'Z' -> parse_word (String.make 1 h) t tokens
+        | '0' .. '9' -> parse_number (String.make 1 h) t tokens
+        | '"' | '\'' -> parse_string h "" t tokens
+        | _ -> parse_line t tokens
+and parse_word word line tokens =
     match line with
-    | [] -> tokens
+    | [] -> parse_line line (tokens @ [ExprValue (ValWord word)])
     | h::t ->
         match h with
         | 'a' .. 'z'
         | 'A' .. 'Z'
-        | '0' .. '9' -> process_word (word ^ (String.make 1 h)) t tokens
-        | _ -> process_line t (tokens @ [ExprValue (ValWord word)])
-and process_string quote str line tokens =
+        | '0' .. '9' -> parse_word (word ^ (String.make 1 h)) t tokens
+        | _ -> parse_line t (tokens @ [ExprValue (ValWord word)])
+and parse_string quote str line tokens =
     match line with
-    | [] -> tokens
+    | [] -> parse_line line (tokens @ [ExprValue (ValString str)])
     | h::t ->
         if h == '\\'
         then match line with
             | [] -> tokens
-            | h::t -> process_string quote (str ^ (String.make 1 h)) t tokens
+            | h::t -> parse_string quote (str ^ (String.make 1 h)) t tokens
         else if h == quote
-        then process_line t (tokens @ [ExprValue (ValString str)])
-        else process_string quote (str ^ (String.make 1 h)) t tokens
+        then parse_line t (tokens @ [ExprValue (ValString str)])
+        else parse_string quote (str ^ (String.make 1 h)) t tokens
+and parse_number num line tokens =
+    match line with
+    | [] -> parse_line line (tokens @ [ExprValue (ValNum (float_of_string num))])
+    | h::t ->
+        match h with
+        | '0' .. '9' -> parse_number (num ^ (String.make 1 h)) t tokens
+        | '.' ->
+            if String.contains num '.'
+            then parse_line line (tokens @ [ExprValue (ValNum (float_of_string num))])
+            else parse_number (num ^ ".") t tokens
+        | _ -> parse_line t (tokens @ [ExprValue (ValNum (float_of_string num))])
 
-let process_file filename =
+let parse_file filename =
     let ic = open_in filename in
     let tokens = ref [] in
     (try
@@ -114,7 +126,7 @@ let process_file filename =
             tokens := (input_line ic
             |> String.to_seq
             |> List.of_seq
-            |> fun line -> process_line line !tokens)
+            |> fun line -> parse_line line !tokens)
         done
     with
     | End_of_file ->
@@ -124,5 +136,5 @@ let process_file filename =
         raise e);
     print_endline (tokens_to_string !tokens)
 
-let () = process_file Sys.argv.(1)
+let () = parse_file Sys.argv.(1)
 
