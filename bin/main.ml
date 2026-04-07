@@ -1,5 +1,21 @@
 module StringMap = Map.Make(String)
 
+let match_brkt b =
+    match b with
+    | '(' -> ')'
+    | '[' -> ']'
+    | '{' -> '}'
+    | _ -> failwith "Invalid bracket"
+
+let is_symbol c =
+    match c with
+    | '+' | '-' | '*' | '/' | '%'
+    | '=' | '!' | '<' | '>' | '&'
+    | '|' | '#' | '$' | '.' | '?'
+    | '~' | '^' | ':'
+    | '\\' -> true
+    | _ -> false
+
 let keywords =
     [ "echo"
     ; "let"
@@ -15,6 +31,111 @@ let keywords =
     ; "end" ]
 
 let is_keyword word = List.mem (String.lowercase_ascii word) keywords
+
+type token = 
+    | TWord  of string
+    | TOp    of string
+    | TStr   of string
+    | TNum   of float
+    | TCmnt  of string
+    | TLBrkt of char
+    | TRBrkt of char
+    | TEndl
+    | TDelim
+
+let token_to_string token =
+    match token with
+    | TWord word    -> "word \"" ^ word ^ "\""
+    | TOp op        -> "op \"" ^ op ^ "\""
+    | TStr str      -> "str \"" ^ str ^ "\""
+    | TNum num      -> "num " ^ (string_of_float num)
+    | TCmnt cmnt    -> "cmnt \"" ^ cmnt ^ "\""
+    | TLBrkt brkt   -> "lbrkt '" ^ (String.make 1 brkt) ^ "'"
+    | TRBrkt brkt   -> "rbrkt '" ^ (String.make 1 brkt) ^ "'"
+    | TEndl         -> "endl"
+    | TDelim        -> "delim"
+
+let rec tokens_to_string tokens = 
+    match tokens with
+    | [] -> ""
+    | h::t -> (token_to_string h) ^ "\n" ^ (tokens_to_string t)
+
+let rec tokenize_line line tokens =
+    match line with
+    | [] -> tokens @ [TEndl]
+    | h::t ->
+        match h with
+        | 'a' .. 'z' | '_'
+        | 'A' .. 'Z' -> tokenize_word (String.make 1 h) t tokens
+        | '0' .. '9' -> tokenize_number (String.make 1 h) t tokens
+        | '"' | '\'' -> tokenize_string h "" t tokens
+        | ';' -> tokenize_line line (tokens @ [TEndl])
+        | ',' -> tokenize_line t (tokens @ [TDelim])
+        | '(' | '[' | '{' -> tokenize_line t (tokens @ [TLBrkt h])
+        | ')' | ']' | '}' -> tokenize_line t (tokens @ [TRBrkt h])
+        | x when is_symbol x -> tokenize_op (String.make 1 x) t tokens
+        | _ -> tokenize_line t tokens
+and tokenize_word word line tokens =
+    let emit line = tokenize_line line (tokens @ [TWord word]) in
+    let next c line = tokenize_word (word ^ (String.make 1 c)) line tokens in
+    match line with
+    | [] -> emit []
+    | h::t ->
+        match h with
+        | 'a' .. 'z' | '_'
+        | 'A' .. 'Z'
+        | '0' .. '9' -> next h t
+        | _ -> emit t
+and tokenize_op op line tokens =
+    let emit line = (match op with
+        | "//" -> tokenize_cmnt "//" line tokens
+        | _ -> tokenize_line line (tokens @ [TOp op]))in
+    let next c line = tokenize_op (op ^ (String.make 1 c)) line tokens in
+    match line with
+    | [] -> emit []
+    | h::t ->
+        if is_symbol h
+        then next h t
+        else emit t
+and tokenize_cmnt cmnt line tokens =
+    let emit line = tokenize_line line (tokens @ [TCmnt cmnt]) in
+    let next c line = tokenize_cmnt (cmnt ^ (String.make 1 c)) line tokens in
+    match line with
+    | [] -> emit []
+    | h::t ->
+        if h == '\n'    
+        then emit t
+        else next h t
+and tokenize_string quote str line tokens =
+    let emit line = tokenize_line line (tokens @ [TStr str]) in
+    let next c line = tokenize_string quote (str ^ (String.make 1 c)) line tokens in
+    match line with
+    | [] -> emit []
+    | h::t ->
+        if h == '\\'
+        then match t with
+            | [] -> emit t
+            | h::t -> next (match h with
+                | 'n' -> '\n'
+                | 'r' -> '\r'
+                | 't' -> '\t'
+                | c -> c) t
+        else if h == quote
+        then emit t
+        else next h t
+and tokenize_number num line tokens =
+    let emit line = tokenize_line line (tokens @ [TNum (float_of_string num)]) in
+    let next c line = tokenize_number (num ^ (String.make 1 c)) line tokens in
+    match line with
+    | [] -> emit []
+    | h::t ->
+        match h with
+        | '0' .. '9' -> next h t
+        | '.' ->
+            if String.contains num '.'
+            then emit line
+            else next '.' t
+        | _ -> emit line
 
 type expr =
     | ExprValue of value
@@ -52,10 +173,10 @@ and cmd =
     | CmdEnd
     | CmdUnknown of string
 
-let rec tokens_to_string tokens = 
-    match tokens with
+let rec exprs_to_string exprs = 
+    match exprs with
     | [] -> ""
-    | h::t -> (expr_to_string h) ^ " " ^ (tokens_to_string t)
+    | h::t -> (expr_to_string h) ^ " " ^ (exprs_to_string t)
 and expr_to_string expr =
     match expr with
     | ExprValue v   -> "(ExprValue " ^ (val_to_string v) ^ ")"
@@ -88,10 +209,10 @@ and cmd_to_string cmd =
     match cmd with
     | CmdEcho    (e) -> "(CmdEcho " ^ (expr_to_string e) ^ ")"
     | CmdLet     (v, e) -> "(CmdLet " ^ v ^ " " ^ (expr_to_string e) ^ ")"
-    | CmdIf      (cond, then_branch, else_branch) -> "(CmdIf " ^ (expr_to_string cond) ^ " " ^ (tokens_to_string then_branch) ^ " " ^ (tokens_to_string else_branch) ^ ")"
-    | CmdFor     (var, start, stop, body) -> "(CmdFor " ^ var ^ " " ^ (expr_to_string start) ^ " " ^ (expr_to_string stop) ^ " " ^ (tokens_to_string body) ^ ")"
-    | CmdForEach (var, list, body) -> "(CmdForEach " ^ var ^ " " ^ (expr_to_string list) ^ " " ^ (tokens_to_string body) ^ ")"
-    | CmdWhile   (cond, body) -> "(CmdWhile " ^ (expr_to_string cond) ^ " " ^ (tokens_to_string body) ^ ")"
+    | CmdIf      (cond, then_branch, else_branch) -> "(CmdIf " ^ (expr_to_string cond) ^ " " ^ (exprs_to_string then_branch) ^ " " ^ (exprs_to_string else_branch) ^ ")"
+    | CmdFor     (var, start, stop, body) -> "(CmdFor " ^ var ^ " " ^ (expr_to_string start) ^ " " ^ (expr_to_string stop) ^ " " ^ (exprs_to_string body) ^ ")"
+    | CmdForEach (var, list, body) -> "(CmdForEach " ^ var ^ " " ^ (expr_to_string list) ^ " " ^ (exprs_to_string body) ^ ")"
+    | CmdWhile   (cond, body) -> "(CmdWhile " ^ (expr_to_string cond) ^ " " ^ (exprs_to_string body) ^ ")"
     | CmdBegin       -> "CmdBegin"
     | CmdEnd         -> "CmdEnd"
     | CmdUnknown cmd -> "(CmdUnknown '" ^ cmd ^ "')"
@@ -108,14 +229,14 @@ let rec parse_line line tokens =
         | _ -> parse_line t tokens
 and parse_word word line tokens =
     let emit line = parse_line line (tokens @ [ExprValue (ValWord word)]) in
-    let next line h = parse_word (word ^ (String.make 1 h)) line tokens in
+    let next c line = parse_word (word ^ (String.make 1 c)) line tokens in
     match line with
     | [] -> emit []
     | h::t ->
         match h with
         | 'a' .. 'z' | '_'
         | 'A' .. 'Z'
-        | '0' .. '9' -> next t h
+        | '0' .. '9' -> next h t
         | _ -> emit t
 and parse_cmd (word : string) line tokens =
     let emit line = parse_line line (tokens @ [ExprCmd (match word with
@@ -169,7 +290,7 @@ let parse_file filename =
             tokens := (input_line ic
             |> String.to_seq
             |> List.of_seq
-            |> fun line -> parse_line line !tokens)
+            |> fun line -> tokenize_line line !tokens)
         done
     with
     | End_of_file ->
