@@ -1,5 +1,15 @@
 module StringMap = Map.Make(String)
 
+(***********************
+    Helper Functions
+ ***********************)
+
+let get_absolute_path (path : string) : string =
+  if Filename.is_relative path then
+    Filename.concat (Sys.getcwd ()) path
+  else
+    path
+
 let match_brkt b =
     match b with
     | '(' -> ')'
@@ -32,7 +42,11 @@ let keywords =
 
 let is_keyword word = List.mem (String.lowercase_ascii word) keywords
 
-type loc = { filename: string option; line: int; col: int }
+(****************
+    Tokenizer
+ ****************)
+
+ type loc = { filename: string option; line: int; col: int }
 
 type token = 
     | TWord  of string
@@ -49,15 +63,15 @@ type token_loc = token * loc
 
 let token_to_string token =
     match token with
-    | TWord word  -> "word \"" ^ word ^ "\""
-    | TOp op      -> "op \"" ^ op ^ "\""
-    | TStr str    -> "str \"" ^ str ^ "\""
-    | TNum num    -> "num " ^ (string_of_float num)
-    | TCmnt cmnt  -> "cmnt \"" ^ cmnt ^ "\""
-    | TLBrkt brkt -> "lbrkt '" ^ (String.make 1 brkt) ^ "'"
-    | TRBrkt brkt -> "rbrkt '" ^ (String.make 1 brkt) ^ "'"
-    | TEndl       -> "endl"
-    | TDelim      -> "delim"
+    | TWord word  -> "WORD \"" ^ word ^ "\""
+    | TOp op      -> "OP \"" ^ op ^ "\""
+    | TStr str    -> "STR \"" ^ str ^ "\""
+    | TNum num    -> "NUM " ^ (string_of_float num)
+    | TCmnt cmnt  -> "CMNT \"" ^ cmnt ^ "\""
+    | TLBrkt brkt -> "LBRKT '" ^ (String.make 1 brkt) ^ "'"
+    | TRBrkt brkt -> "RBRKT '" ^ (String.make 1 brkt) ^ "'"
+    | TEndl       -> "ENDL"
+    | TDelim      -> "DELIM"
 
 let loc_to_string loc =
     (match loc.filename with
@@ -149,6 +163,48 @@ and tokenize_number num line loc tokens =
             else next '.' t
         | _ -> emit line
 
+let rec tokenize_file_loop ic loc tokens =
+    (try
+        tokenize_file_loop ic (next_line loc) (input_line ic
+        |> String.to_seq
+        |> List.of_seq
+        |> fun line -> tokenize_line line loc tokens)
+    with
+    | End_of_file ->
+        close_in ic;
+        tokens
+    | e ->
+        close_in_noerr ic;
+        raise e)
+
+let tokenize_file filename =
+    let ic = open_in filename in
+    tokenize_file_loop ic
+    { filename = Some (get_absolute_path filename)
+    ; line = 1
+    ; col = 0
+    } []
+
+(*************
+    Parser
+ *************)
+
+type parse_state =
+    { tokens: token_loc list
+    ; pos: int }
+type parse_error =
+    { loc: loc option
+    ; message: string }
+
+let current_token state = List.nth_opt state.tokens state.pos
+let advance state = { state with pos = state.pos + 1 }
+let peek state = List.nth_opt state.tokens (state.pos + 1)
+
+let error state message =
+    match current_token state with
+    | Some (_, loc) -> { loc = Some loc; message }
+    | None -> { loc = None; message }
+
 type expr =
     | ExprValue of value
     | ExprVar   of string
@@ -229,33 +285,33 @@ and cmd_to_string cmd =
     | CmdEnd         -> "CmdEnd"
     | CmdUnknown cmd -> "(CmdUnknown '" ^ cmd ^ "')"
 
-let rec tokenize_file_loop ic loc tokens =
-    (try
-        tokenize_file_loop ic (next_line loc) (input_line ic
-        |> String.to_seq
-        |> List.of_seq
-        |> fun line -> tokenize_line line loc tokens)
-    with
-    | End_of_file ->
-        close_in ic;
-        tokens
-    | e ->
-        close_in_noerr ic;
-        raise e)
+(*
+(* TODO: Implment parsing *)
+let rec parse_tokens state =
+    match current_token state with
+    | Some (TWord "echo", _) -> parse_echo state
+    | Some (TWord "let", _) -> parse_let state
+    | Some (TWord "if", _) -> parse_if state
+    | Some (TWord "for", _) -> parse_for state
+    | Some (TWord "foreach", _) -> parse_foreach state
+    | Some (TWord "while", _) -> parse_while state
+    | Some (TWord "begin", _) -> parse_begin state
+    | Some (TWord "end", _) -> parse_end state
+    | Some (TWord cmd, _) -> let state = advance state in (ExprCmd (CmdUnknown cmd), state)
+    | Some _ -> let state = advance state in error state "Unexpected token"
+    | None -> error { loc = None; message = "Unexpected end of input" }
+let start_parse_tokens tokens =
+    let state = { tokens; pos = 0 } in
+    match parse_tokens state with
+    | (expr, state) ->
+        if current_token state == None
+        then Ok expr
+        else Error (error state "Unexpected token after end of command")
+*)
 
-let get_absolute_path (path : string) : string =
-  if Filename.is_relative path then
-    Filename.concat (Sys.getcwd ()) path
-  else
-    path
-
-let tokenize_file filename =
-    let ic = open_in filename in
-    tokenize_file_loop ic
-    { filename = Some (get_absolute_path filename)
-    ; line = 1
-    ; col = 0
-    } []
+(***********
+    Main
+ ***********)
 
 let () =
     tokenize_file Sys.argv.(1)
