@@ -32,6 +32,8 @@ let keywords =
 
 let is_keyword word = List.mem (String.lowercase_ascii word) keywords
 
+type loc = { filename: string option; line: int; col: int }
+
 type token = 
     | TWord  of string
     | TOp    of string
@@ -43,41 +45,51 @@ type token =
     | TEndl
     | TDelim
 
+type token_loc = token * loc
+
 let token_to_string token =
     match token with
-    | TWord word    -> "word \"" ^ word ^ "\""
-    | TOp op        -> "op \"" ^ op ^ "\""
-    | TStr str      -> "str \"" ^ str ^ "\""
-    | TNum num      -> "num " ^ (string_of_float num)
-    | TCmnt cmnt    -> "cmnt \"" ^ cmnt ^ "\""
-    | TLBrkt brkt   -> "lbrkt '" ^ (String.make 1 brkt) ^ "'"
-    | TRBrkt brkt   -> "rbrkt '" ^ (String.make 1 brkt) ^ "'"
-    | TEndl         -> "endl"
-    | TDelim        -> "delim"
+    | TWord word  -> "word \"" ^ word ^ "\""
+    | TOp op      -> "op \"" ^ op ^ "\""
+    | TStr str    -> "str \"" ^ str ^ "\""
+    | TNum num    -> "num " ^ (string_of_float num)
+    | TCmnt cmnt  -> "cmnt \"" ^ cmnt ^ "\""
+    | TLBrkt brkt -> "lbrkt '" ^ (String.make 1 brkt) ^ "'"
+    | TRBrkt brkt -> "rbrkt '" ^ (String.make 1 brkt) ^ "'"
+    | TEndl       -> "endl"
+    | TDelim      -> "delim"
 
-let rec tokens_to_string tokens = 
+let loc_to_string loc =
+    (match loc.filename with
+    | Some filename -> filename
+    | None -> "<unknown>") ^ ":" ^ (string_of_int loc.line) ^ ":" ^ (string_of_int loc.col)
+
+let rec token_loc_list_to_string tokens = 
     match tokens with
     | [] -> ""
-    | h::t -> (token_to_string h) ^ "\n" ^ (tokens_to_string t)
+    | (token, loc)::t -> (token_to_string token) ^ " at " ^ (loc_to_string loc) ^ "\n" ^ (token_loc_list_to_string t)
 
-let rec tokenize_line line tokens =
+let next_col loc = { loc with col = loc.col + 1 }
+let next_line loc = { loc with line = loc.line + 1; col = 0 }
+
+let rec tokenize_line line loc tokens =
     match line with
-    | [] -> tokens @ [TEndl]
+    | [] -> tokens @ [(TEndl, loc)]
     | h::t ->
         match h with
         | 'a' .. 'z' | '_'
-        | 'A' .. 'Z' -> tokenize_word (String.make 1 h) t tokens
-        | '0' .. '9' -> tokenize_number (String.make 1 h) t tokens
-        | '"' | '\'' -> tokenize_string h "" t tokens
-        | ';' -> tokenize_line line (tokens @ [TEndl])
-        | ',' -> tokenize_line t (tokens @ [TDelim])
-        | '(' | '[' | '{' -> tokenize_line t (tokens @ [TLBrkt h])
-        | ')' | ']' | '}' -> tokenize_line t (tokens @ [TRBrkt h])
-        | x when is_symbol x -> tokenize_op (String.make 1 x) t tokens
-        | _ -> tokenize_line t tokens
-and tokenize_word word line tokens =
-    let emit line = tokenize_line line (tokens @ [TWord word]) in
-    let next c line = tokenize_word (word ^ (String.make 1 c)) line tokens in
+        | 'A' .. 'Z' -> tokenize_word (String.make 1 h) t (next_col loc) tokens
+        | '0' .. '9' -> tokenize_number (String.make 1 h) t (next_col loc) tokens
+        | '"' | '\'' -> tokenize_string h "" t (next_col loc) tokens
+        | ';' -> tokenize_line t (next_col loc) (tokens @ [(TEndl, loc)])
+        | ',' -> tokenize_line t (next_col loc) (tokens @ [(TDelim, loc)])
+        | '(' | '[' | '{' -> tokenize_line t (next_col loc) (tokens @ [(TLBrkt h, loc)])
+        | ')' | ']' | '}' -> tokenize_line t (next_col loc) (tokens @ [(TRBrkt h, loc)])
+        | x when is_symbol x -> tokenize_op (String.make 1 x) t (next_col loc) tokens
+        | _ -> tokenize_line t (next_col loc) tokens
+and tokenize_word word line loc tokens =
+    let emit line = tokenize_line line (next_col loc) (tokens @ [(TWord word, loc)]) in
+    let next c line = tokenize_word (word ^ (String.make 1 c)) line (next_col loc) tokens in
     match line with
     | [] -> emit []
     | h::t ->
@@ -86,29 +98,29 @@ and tokenize_word word line tokens =
         | 'A' .. 'Z'
         | '0' .. '9' -> next h t
         | _ -> emit t
-and tokenize_op op line tokens =
+and tokenize_op op line loc tokens =
     let emit line = (match op with
-        | "//" -> tokenize_cmnt "//" line tokens
-        | _ -> tokenize_line line (tokens @ [TOp op]))in
-    let next c line = tokenize_op (op ^ (String.make 1 c)) line tokens in
+        | "//" -> tokenize_cmnt "//" line (next_col loc) tokens
+        | _ -> tokenize_line line (next_col loc) (tokens @ [(TOp op, loc)]))in
+    let next c line = tokenize_op (op ^ (String.make 1 c)) line (next_col loc) tokens in
     match line with
     | [] -> emit []
     | h::t ->
         if is_symbol h
         then next h t
         else emit t
-and tokenize_cmnt cmnt line tokens =
-    let emit line = tokenize_line line (tokens @ [TCmnt cmnt]) in
-    let next c line = tokenize_cmnt (cmnt ^ (String.make 1 c)) line tokens in
+and tokenize_cmnt cmnt line loc tokens =
+    let emit line = tokenize_line line (next_col loc) (tokens @ [(TCmnt cmnt, loc)]) in
+    let next c line = tokenize_cmnt (cmnt ^ (String.make 1 c)) line (next_col loc) tokens in
     match line with
     | [] -> emit []
     | h::t ->
         if h == '\n'    
         then emit t
         else next h t
-and tokenize_string quote str line tokens =
-    let emit line = tokenize_line line (tokens @ [TStr str]) in
-    let next c line = tokenize_string quote (str ^ (String.make 1 c)) line tokens in
+and tokenize_string quote str line loc tokens =
+    let emit line = tokenize_line line (next_col loc) (tokens @ [(TStr str, loc)]) in
+    let next c line = tokenize_string quote (str ^ (String.make 1 c)) line (next_col loc) tokens in
     match line with
     | [] -> emit []
     | h::t ->
@@ -123,9 +135,9 @@ and tokenize_string quote str line tokens =
         else if h == quote
         then emit t
         else next h t
-and tokenize_number num line tokens =
-    let emit line = tokenize_line line (tokens @ [TNum (float_of_string num)]) in
-    let next c line = tokenize_number (num ^ (String.make 1 c)) line tokens in
+and tokenize_number num line loc tokens =
+    let emit line = tokenize_line line (next_col loc) (tokens @ [(TNum (float_of_string num), loc)]) in
+    let next c line = tokenize_number (num ^ (String.make 1 c)) line (next_col loc) tokens in
     match line with
     | [] -> emit []
     | h::t ->
@@ -217,88 +229,35 @@ and cmd_to_string cmd =
     | CmdEnd         -> "CmdEnd"
     | CmdUnknown cmd -> "(CmdUnknown '" ^ cmd ^ "')"
 
-let rec parse_line line tokens =
-    match line with
-    | [] -> tokens
-    | h::t -> 
-        match h with
-        | 'a' .. 'z' | '_'
-        | 'A' .. 'Z' -> parse_word (String.make 1 h) t tokens
-        | '0' .. '9' -> parse_number (String.make 1 h) t tokens
-        | '"' | '\'' -> parse_string h "" t tokens
-        | _ -> parse_line t tokens
-and parse_word word line tokens =
-    let emit line = parse_line line (tokens @ [ExprValue (ValWord word)]) in
-    let next c line = parse_word (word ^ (String.make 1 c)) line tokens in
-    match line with
-    | [] -> emit []
-    | h::t ->
-        match h with
-        | 'a' .. 'z' | '_'
-        | 'A' .. 'Z'
-        | '0' .. '9' -> next h t
-        | _ -> emit t
-and parse_cmd (word : string) line tokens =
-    let emit line = parse_line line (tokens @ [ExprCmd (match word with
-        (* to be implemented later *)
-        | _ -> CmdUnknown word
-    )]) in
-    let next c line = parse_cmd (word ^ (String.make 1 c)) line tokens in
-    match line with
-    | [] -> emit []
-    | h::t ->
-        match h with
-        | 'a' .. 'z'
-        | 'A' .. 'Z' -> next h t
-        | _ -> emit t
-and parse_string quote str line tokens =
-    let emit line = parse_line line (tokens @ [ExprValue (ValString str)]) in
-    let next c line = parse_string quote (str ^ (String.make 1 c)) line tokens in
-    match line with
-    | [] -> emit []
-    | h::t ->
-        if h == '\\'
-        then match t with
-            | [] -> emit t
-            | h::t -> next (match h with
-                | 'n' -> '\n'
-                | 'r' -> '\r'
-                | 't' -> '\t'
-                | c -> c) t
-        else if h == quote
-        then emit t
-        else next h t
-and parse_number num line tokens =
-    let emit line = parse_line line (tokens @ [ExprValue (ValNum (float_of_string num))]) in
-    let next c line = parse_number (num ^ (String.make 1 c)) line tokens in
-    match line with
-    | [] -> emit []
-    | h::t ->
-        match h with
-        | '0' .. '9' -> next h t
-        | '.' ->
-            if String.contains num '.'
-            then emit line
-            else next '.' t
-        | _ -> emit t
-
-let parse_file filename =
-    let ic = open_in filename in
-    let tokens = ref [] in
+let rec tokenize_file_loop ic loc tokens =
     (try
-        while true do
-            tokens := (input_line ic
-            |> String.to_seq
-            |> List.of_seq
-            |> fun line -> tokenize_line line !tokens)
-        done
+        tokenize_file_loop ic (next_line loc) (input_line ic
+        |> String.to_seq
+        |> List.of_seq
+        |> fun line -> tokenize_line line loc tokens)
     with
     | End_of_file ->
-        close_in ic
+        close_in ic;
+        tokens
     | e ->
         close_in_noerr ic;
-        raise e);
-    print_endline (tokens_to_string !tokens)
+        raise e)
 
-let () = parse_file Sys.argv.(1)
+let get_absolute_path (path : string) : string =
+  if Filename.is_relative path then
+    Filename.concat (Sys.getcwd ()) path
+  else
+    path
 
+let tokenize_file filename =
+    let ic = open_in filename in
+    tokenize_file_loop ic
+    { filename = Some (get_absolute_path filename)
+    ; line = 1
+    ; col = 0
+    } []
+
+let () =
+    tokenize_file Sys.argv.(1)
+    |> token_loc_list_to_string
+    |> print_endline
