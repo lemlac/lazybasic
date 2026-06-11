@@ -20,5 +20,8 @@
   "bugs": {
     "url": "https://github.com/lemlac/lazybasic/issues"
   },
-  "homepage": "https://github.com/lemlac/lazybasic#readme"
+  "homepage": "https://github.com/lemlac/lazybasic#readme",
+  "devDependencies": {
+    "typescript": "^6.0.3"
+  }
 }
