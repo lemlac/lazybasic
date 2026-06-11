@@ -1,0 +1,24 @@
+{
+  "name": "lazybasic",
+  "version": "1.0.0",
+  "description": "Lazy Basic - a Basic-style functional programming language",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lemlac/lazybasic.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "GNUv3",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/lemlac/lazybasic/issues"
+  },
+  "homepage": "https://github.com/lemlac/lazybasic#readme"
+}
