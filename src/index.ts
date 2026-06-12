@@ -1,1 +1,1 @@
-export { tokenize } from './tokenizer';
+export { tokenize, tokenizeStream, tokenizeFile } from './tokenizer';
