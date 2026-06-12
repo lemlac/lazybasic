@@ -71,7 +71,7 @@ class Tokenizer {
                         info.isComment = false;
                         if (!info.ignoreLineBreaks) {
                             info.tokens.push({
-                                token: { tag: types_1.TokenTag.LINE_BREAK },
+                                tag: types_1.TokenTag.LINE_BREAK,
                                 pos: info.copyPos(),
                             });
                         }
@@ -97,7 +97,7 @@ class Tokenizer {
                             case types_1.TokenTag.SYMBOL:
                                 info.token.symbol = info.chunk;
                         }
-                        info.tokens.push({ token: info.token, pos: info.copyPos() });
+                        info.tokens.push(Object.assign({ pos: info.copyPos() }, info.token));
                         info.chunk = '';
                         info.token = null;
                     }
@@ -142,14 +142,14 @@ class Tokenizer {
                             }
                             info.token.symbol = info.chunk;
                     }
-                    info.tokens.push({ token: info.token, pos: info.copyPos() });
+                    info.tokens.push(Object.assign({ pos: info.copyPos() }, info.token));
                     info.chunk = '';
                     info.token = null;
                 }
                 if (c === '\n') {
                     if (!info.ignoreLineBreaks) {
                         info.tokens.push({
-                            token: { tag: types_1.TokenTag.LINE_BREAK },
+                            tag: types_1.TokenTag.LINE_BREAK,
                             pos: info.copyPos(),
                         });
                     }
@@ -160,7 +160,8 @@ class Tokenizer {
                 }
                 if (c === '(' || c === '[' || c === '{') {
                     info.tokens.push({
-                        token: { tag: types_1.TokenTag.B_START, bracketStart: c },
+                        tag: types_1.TokenTag.B_START,
+                        bracketStart: c,
                         pos: info.copyPos(),
                     });
                     info.ignoreLineBreaks = true;
@@ -169,7 +170,7 @@ class Tokenizer {
                 else if (c === ')' || c === ']' || c === '}') {
                     let foundBracket = false;
                     for (let i = info.tokens.length - 1; i >= 0; i--) {
-                        const token_i = info.tokens[i].token;
+                        const token_i = info.tokens[i];
                         if (token_i.tag === types_1.TokenTag.B_START) {
                             let start = token_i.bracketStart;
                             let end = c;
@@ -188,7 +189,8 @@ class Tokenizer {
                     info.contexts.pop();
                     info.ignoreLineBreaks = info.contexts[info.contexts.length - 1];
                     info.tokens.push({
-                        token: { tag: types_1.TokenTag.B_END, bracketEnd: c },
+                        tag: types_1.TokenTag.B_END,
+                        bracketEnd: c,
                         pos: info.copyPos(),
                     });
                 }
@@ -230,7 +232,7 @@ class Tokenizer {
                     case types_1.TokenTag.SYMBOL:
                         info.token.symbol = info.chunk;
                 }
-                info.tokens.push({ token: info.token, pos: info.copyPos() });
+                info.tokens.push(Object.assign({ pos: info.copyPos() }, info.token));
             }
             if (this.contexts.length != 1) {
                 throw info.makeError(`Unexepected end of script`);

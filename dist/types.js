@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TokenTag = void 0;
+exports.BracketType = exports.Op = exports.TokenTag = void 0;
 var TokenTag;
 (function (TokenTag) {
     TokenTag["SYMBOL"] = "SYMBOL";
@@ -11,8 +11,49 @@ var TokenTag;
     TokenTag["END"] = "END";
     TokenTag["RETURN"] = "RETURN";
     TokenTag["PARAMETER"] = "PARAMETER";
+    TokenTag["OP"] = "OP";
     TokenTag["B_START"] = "B_START";
     TokenTag["B_END"] = "B_END";
+    TokenTag["B_SEQUENCE"] = "B_SEQUENCE";
     TokenTag["LINE_BREAK"] = "LINE_BREAK";
 })(TokenTag || (exports.TokenTag = TokenTag = {}));
+var Op;
+(function (Op) {
+    Op["SET"] = "SET";
+    Op["ACCESS"] = "ACCESS";
+    Op["INDEX"] = "INDEX";
+    Op["CALL"] = "CALL";
+    Op["DELIM"] = "DELIM";
+    Op["KEY_DELIM"] = "DELIM";
+    Op["ADD"] = "ADD";
+    Op["SUBTRACT"] = "SUBTRACT";
+    Op["MULTIPLY"] = "MULTIPLY";
+    Op["DIVIDE"] = "DIVIDE";
+    Op["MODULO"] = "MODULO";
+    Op["EQ"] = "EQ";
+    Op["NEQ"] = "NEQ";
+    Op["LT"] = "LT";
+    Op["GT"] = "GT";
+    Op["LTE"] = "LTE";
+    Op["GTE"] = "GTE";
+    Op["AND"] = "AND";
+    Op["OR"] = "OR";
+    Op["NOT"] = "NOT";
+    Op["B_AND"] = "B_AND";
+    Op["B_OR"] = "B_OR";
+    Op["X_OR"] = "X_OR";
+    Op["B_NOT"] = "B_NOT";
+    Op["L_SHIFT"] = "L_SHIFT";
+    Op["R_SHIFT"] = "R_SHIFT";
+    Op["SET_ADD"] = "SET_ADD";
+    Op["SET_SUBTRACT"] = "SET_SUBTRACT";
+    Op["SET_MULTIPLY"] = "SET_MULTIPLY";
+    Op["SET_DIVIDE"] = "SET_DIVIDE";
+})(Op || (exports.Op = Op = {}));
+var BracketType;
+(function (BracketType) {
+    BracketType["ROUND"] = "()";
+    BracketType["SQUARE"] = "[]";
+    BracketType["CURLY"] = "{}";
+})(BracketType || (exports.BracketType = BracketType = {}));
 //# sourceMappingURL=types.js.map

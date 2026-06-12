@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import type { ReadStream } from 'node:fs';
 
 import { TokenTag } from './types';
-import type { Token, TokenWithTracking } from './types';
+import type { Token, TokenWithTracking, Position } from './types';
 
 const keywords = new Map<string, TokenTag>([
     ['function', TokenTag.FUNCTION],
@@ -10,12 +10,6 @@ const keywords = new Map<string, TokenTag>([
     ['return', TokenTag.RETURN],
     ['parameter', TokenTag.PARAMETER],
 ]);
-
-type Position = {
-    line: number,
-    col: number,
-    idx: number,
-};
 
 export class TokenizerError extends Error {
     message: string;
@@ -83,7 +77,7 @@ export class Tokenizer {
 
                         if (!info.ignoreLineBreaks) {
                             info.tokens.push({
-                                token: { tag: TokenTag.LINE_BREAK },
+                                tag: TokenTag.LINE_BREAK,
                                 pos: info.copyPos(),
                             });
                         }
@@ -113,7 +107,7 @@ export class Tokenizer {
                                 info.token.symbol = info.chunk;
                         }
 
-                        info.tokens.push({ token: info.token, pos: info.copyPos() });
+                        info.tokens.push(Object.assign({ pos: info.copyPos() }, info.token));
                         info.chunk = '';
                         info.token = null;
                     }
@@ -161,7 +155,7 @@ export class Tokenizer {
                             }
                             info.token.symbol = info.chunk;
                     }
-                    info.tokens.push({ token: info.token, pos: info.copyPos() });
+                    info.tokens.push(Object.assign({ pos: info.copyPos() }, info.token));
                     info.chunk = '';
                     info.token = null;
                 }
@@ -169,7 +163,7 @@ export class Tokenizer {
                 if (c === '\n') {
                     if (!info.ignoreLineBreaks) {
                         info.tokens.push({
-                            token: { tag: TokenTag.LINE_BREAK },
+                            tag: TokenTag.LINE_BREAK,
                             pos: info.copyPos(),
                         });
                     }
@@ -181,7 +175,8 @@ export class Tokenizer {
 
                 if (c === '(' || c === '[' || c === '{') {
                     info.tokens.push({
-                        token: { tag: TokenTag.B_START, bracketStart: c },
+                        tag: TokenTag.B_START,
+                        bracketStart: c,
                         pos: info.copyPos(),
                     });
                     info.ignoreLineBreaks = true;
@@ -190,7 +185,7 @@ export class Tokenizer {
                     let foundBracket = false;
 
                     for (let i = info.tokens.length - 1; i >= 0; i--) {
-                        const token_i = info.tokens[i].token;
+                        const token_i = info.tokens[i];
                         if (token_i.tag === TokenTag.B_START) {
                             let start = token_i.bracketStart;
                             let end = c;
@@ -214,7 +209,8 @@ export class Tokenizer {
                     info.ignoreLineBreaks = info.contexts[info.contexts.length - 1];
 
                     info.tokens.push({
-                        token: { tag: TokenTag.B_END, bracketEnd: c }, 
+                        tag: TokenTag.B_END,
+                        bracketEnd: c,
                         pos: info.copyPos(),
                     });
                 } else if (isAlphanumeric(c)) {
@@ -255,7 +251,7 @@ export class Tokenizer {
                         info.token.symbol = info.chunk;
                 }
 
-                info.tokens.push({ token: info.token, pos: info.copyPos() });
+                info.tokens.push(Object.assign({ pos: info.copyPos() }, info.token));
             }
 
             if (this.contexts.length != 1) {
