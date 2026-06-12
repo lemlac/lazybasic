@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.Tokenizer = void 0;
 exports.tokenize = tokenize;
 const types_1 = require("./types");
 const keywords = new Map([
@@ -8,158 +9,176 @@ const keywords = new Map([
     ['return', types_1.TokenTag.RETURN],
     ['parameter', types_1.TokenTag.PARAMETER],
 ]);
-function tokenize(input) {
-    let tokens = [];
-    let chunk = '';
-    let isComment = false;
-    let token = null;
-    let line = 0;
-    let col = 0;
-    let idx = 0;
-    let ignoreLineBreaks = false;
-    let contexts = [ignoreLineBreaks];
-    for (let c of input.replace(/\n?$/, '\n')) {
-        if (isComment) {
-            if (c === '\n') {
-                isComment = false;
-                if (!ignoreLineBreaks) {
-                    tokens.push({
-                        token: { tag: types_1.TokenTag.LINE_BREAK },
-                        pos: { line, col, idx },
-                    });
+class Tokenizer {
+    constructor() {
+        this.tokens = [];
+        this.chunk = '';
+        this.isComment = false;
+        this.token = null;
+        this.pos = {
+            line: 0,
+            col: 0,
+            idx: 0,
+        };
+        this.ignoreLineBreaks = false;
+        this.contexts = [this.ignoreLineBreaks];
+    }
+    copyPos() {
+        return {
+            line: this.pos.line,
+            col: this.pos.col,
+            idx: this.pos.idx,
+        };
+    }
+    tokenize(input) {
+        const info = this;
+        for (let c of input) {
+            if (info.isComment) {
+                if (c === '\n') {
+                    info.isComment = false;
+                    if (!info.ignoreLineBreaks) {
+                        info.tokens.push({
+                            token: { tag: types_1.TokenTag.LINE_BREAK },
+                            pos: info.copyPos(),
+                        });
+                    }
+                    info.pos.col = 0;
+                    info.pos.line += 1;
                 }
-                col = 0;
-                line += 1;
+                info.pos.idx += 1;
+                continue;
             }
-            idx += 1;
-            continue;
-        }
-        if (c === "'") {
-            isComment = true;
-            if (token != null) {
-                switch (token.tag) {
+            if (c === "'") {
+                info.isComment = true;
+                if (info.token != null) {
+                    switch (info.token.tag) {
+                        case types_1.TokenTag.WORD:
+                            const tag = keywords.get(info.chunk.toLowerCase());
+                            if (tag != null) {
+                                info.token.tag = tag;
+                            }
+                            else {
+                                info.token.word = info.chunk;
+                            }
+                            break;
+                        case types_1.TokenTag.SYMBOL:
+                            info.token.symbol = info.chunk;
+                    }
+                    info.tokens.push({ token: info.token, pos: info.copyPos() });
+                    info.chunk = '';
+                    info.token = null;
+                }
+                info.pos.col += 1;
+                info.pos.idx += 1;
+                continue;
+            }
+            if (info.token != null) {
+                switch (info.token.tag) {
                     case types_1.TokenTag.WORD:
-                        const tag = keywords.get(chunk.toLowerCase());
+                        if (isAlphanumeric(c)) {
+                            info.chunk += c;
+                            info.pos.col += 1;
+                            info.pos.idx += 1;
+                            continue;
+                        }
+                        const tag = keywords.get(info.chunk.toLowerCase());
                         if (tag != null) {
-                            token.tag = tag;
+                            info.token.tag = tag;
+                            if (tag === types_1.TokenTag.FUNCTION) {
+                                info.ignoreLineBreaks = false;
+                                info.contexts.push(info.ignoreLineBreaks);
+                            }
+                            else if (tag === types_1.TokenTag.END) {
+                                if (info.contexts.length <= 1) {
+                                    throw new Error(`Unmatched token: "${info.chunk}" @ ${info.pos.line}:${info.pos.col + 1 - info.chunk.length}`);
+                                }
+                                info.contexts.pop();
+                                info.ignoreLineBreaks = info.contexts[info.contexts.length - 1];
+                            }
                         }
                         else {
-                            token.word = chunk;
+                            info.token.word = info.chunk;
                         }
                         break;
                     case types_1.TokenTag.SYMBOL:
-                        token.symbol = chunk;
+                        if (isSymbol(c)) {
+                            info.chunk += c;
+                            info.pos.col += 1;
+                            info.pos.idx += 1;
+                            continue;
+                        }
+                        info.token.symbol = info.chunk;
                 }
-                tokens.push({ token, pos: { line, col, idx } });
-                chunk = '';
-                token = null;
+                info.tokens.push({ token: info.token, pos: info.copyPos() });
+                info.chunk = '';
+                info.token = null;
             }
-            col += 1;
-            idx += 1;
-            continue;
-        }
-        if (token != null) {
-            switch (token.tag) {
-                case types_1.TokenTag.WORD:
-                    if (isAlphanumeric(c)) {
-                        chunk += c;
-                        col += 1;
-                        idx += 1;
-                        continue;
-                    }
-                    const tag = keywords.get(chunk.toLowerCase());
-                    if (tag != null) {
-                        token.tag = tag;
-                        if (tag === types_1.TokenTag.FUNCTION) {
-                            ignoreLineBreaks = false;
-                            contexts.push(ignoreLineBreaks);
-                        }
-                        else if (tag === types_1.TokenTag.END) {
-                            if (contexts.length <= 1) {
-                                throw new Error(`Unmatched token: "${chunk}" @ ${line}:${col + 1 - chunk.length}`);
-                            }
-                            contexts.pop();
-                            ignoreLineBreaks = contexts[contexts.length - 1];
-                        }
-                    }
-                    else {
-                        token.word = chunk;
-                    }
-                    break;
-                case types_1.TokenTag.SYMBOL:
-                    if (isSymbol(c)) {
-                        chunk += c;
-                        col += 1;
-                        idx += 1;
-                        continue;
-                    }
-                    token.symbol = chunk;
+            if (c === '\n') {
+                if (!info.ignoreLineBreaks) {
+                    info.tokens.push({
+                        token: { tag: types_1.TokenTag.LINE_BREAK },
+                        pos: info.copyPos(),
+                    });
+                }
+                info.pos.col = 0;
+                info.pos.line += 1;
+                info.pos.idx += 1;
+                continue;
             }
-            tokens.push({ token, pos: { line, col, idx } });
-            chunk = '';
-            token = null;
-        }
-        if (c === '\n') {
-            if (!ignoreLineBreaks) {
-                tokens.push({
-                    token: { tag: types_1.TokenTag.LINE_BREAK },
-                    pos: { line, col, idx },
+            if (c === '(' || c === '[' || c === '{') {
+                info.tokens.push({
+                    token: { tag: types_1.TokenTag.B_START, bracketStart: c },
+                    pos: info.copyPos(),
+                });
+                info.ignoreLineBreaks = true;
+                info.contexts.push(info.ignoreLineBreaks);
+            }
+            else if (c === ')' || c === ']' || c === '}') {
+                let foundBracket = false;
+                for (let i = info.tokens.length - 1; i >= 0; i--) {
+                    const token_i = info.tokens[i].token;
+                    if (token_i.tag === types_1.TokenTag.B_START) {
+                        let start = token_i.bracketStart;
+                        let end = c;
+                        if ((start === '(' && end !== ')') ||
+                            (start === '[' && end !== ']') ||
+                            (start === '{' && end !== '}')) {
+                            throw new Error(`Unmatched bracket: "${start}" -> "${end}" @ ${info.pos.line}:${info.pos.col}`);
+                        }
+                        foundBracket = true;
+                        break;
+                    }
+                }
+                if (!foundBracket || info.contexts.length <= 1) {
+                    throw new Error(`Unmatched bracket: "${c}" @ ${info.pos.line}:${info.pos.col}`);
+                }
+                info.contexts.pop();
+                info.ignoreLineBreaks = info.contexts[info.contexts.length - 1];
+                info.tokens.push({
+                    token: { tag: types_1.TokenTag.B_END, bracketEnd: c },
+                    pos: info.copyPos(),
                 });
             }
-            col = 0;
-            line += 1;
-            idx += 1;
-            continue;
-        }
-        if (c === '(' || c === '[' || c === '{') {
-            tokens.push({
-                token: { tag: types_1.TokenTag.B_START, bracketStart: c },
-                pos: { line, col, idx },
-            });
-            ignoreLineBreaks = true;
-            contexts.push(ignoreLineBreaks);
-        }
-        else if (c === ')' || c === ']' || c === '}') {
-            let foundBracket = false;
-            for (let i = tokens.length - 1; i >= 0; i--) {
-                const token_i = tokens[i].token;
-                if (token_i.tag === types_1.TokenTag.B_START) {
-                    let start = token_i.bracketStart;
-                    let end = c;
-                    if ((start === '(' && end !== ')') ||
-                        (start === '[' && end !== ']') ||
-                        (start === '{' && end !== '}')) {
-                        throw new Error(`Unmatched bracket: "${start}" -> "${end}" @ ${line}:${col}`);
-                    }
-                    foundBracket = true;
-                    break;
-                }
+            else if (isAlphanumeric(c)) {
+                info.token = { tag: types_1.TokenTag.WORD };
+                info.chunk = c;
             }
-            if (!foundBracket || contexts.length <= 1) {
-                throw new Error(`Unmatched bracket: "${c}" @ ${line}:${col}`);
+            else if (isSymbol(c)) {
+                info.token = { tag: types_1.TokenTag.SYMBOL };
+                info.chunk = c;
             }
-            contexts.pop();
-            ignoreLineBreaks = contexts[contexts.length - 1];
-            tokens.push({
-                token: { tag: types_1.TokenTag.B_END, bracketEnd: c },
-                pos: { line, col, idx },
-            });
+            else if (!isWhitespace(c)) {
+                throw new Error(`Unexpected token: ${c} @ ${info.pos.line}:${info.pos.col}`);
+            }
+            info.pos.col += 1;
+            info.pos.idx += 1;
         }
-        else if (isAlphanumeric(c)) {
-            token = { tag: types_1.TokenTag.WORD };
-            chunk = c;
-        }
-        else if (isSymbol(c)) {
-            token = { tag: types_1.TokenTag.SYMBOL };
-            chunk = c;
-        }
-        else if (!isWhitespace(c)) {
-            throw new Error(`Unexpected token: ${c} @ ${line}:${col}`);
-        }
-        col += 1;
-        idx += 1;
+        return info.tokens;
     }
-    return tokens;
+}
+exports.Tokenizer = Tokenizer;
+function tokenize(input) {
+    return new Tokenizer().tokenize(input.replace(/\n?$/, '\n'));
 }
 function isWhitespace(s) {
     return /^\s+$/.test(s);
