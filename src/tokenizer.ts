@@ -3,6 +3,7 @@ import type { ReadStream } from 'node:fs';
 
 import { TokenTag } from './types';
 import type { Token, TokenWithTracking, Position } from './types';
+import { isWhitespace, isAlphanumeric, isSymbol, addQuotes } from './helpers';
 
 const keywords = new Map<string, TokenTag>([
     ['function', TokenTag.FUNCTION],
@@ -42,7 +43,7 @@ export class Tokenizer {
     contexts = [this.ignoreLineBreaks];
     filename: string | null = null;
 
-    copyPos(): Position {
+    private copyPos(): Position {
         return {
             line: this.pos.line,
             col: this.pos.col,
@@ -50,7 +51,7 @@ export class Tokenizer {
         };
     }
 
-    makeError(message: string): TokenizerError {
+    private makeError(message: string): TokenizerError {
         return new TokenizerError(message, this.copyPos(), this.filename); 
     }
 
@@ -294,20 +295,4 @@ export function tokenizeFile(filename: string, encoding: BufferEncoding = 'utf8'
     const stream = fs.createReadStream(filename);
     stream.setEncoding(encoding);
     return tokenizer.tokenizeStream(stream);
-}
-
-function isWhitespace(s: string): boolean {
-    return /^\s+$/.test(s);
-}
-
-function isAlphanumeric(s: string): boolean {
-    return /^\w+$/.test(s);
-}
-
-function isSymbol(s: string): boolean {
-    return /^[~!@#$%^&*-+=\\|,<.>/?]+$/.test(s);
-}
-
-function addQuotes(s: string): string {
-    return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/^|$/g, '"');
 }

@@ -9,6 +9,7 @@ exports.tokenizeStream = tokenizeStream;
 exports.tokenizeFile = tokenizeFile;
 const node_fs_1 = __importDefault(require("node:fs"));
 const types_1 = require("./types");
+const helpers_1 = require("./helpers");
 const keywords = new Map([
     ['function', types_1.TokenTag.FUNCTION],
     ['end', types_1.TokenTag.END],
@@ -108,7 +109,7 @@ class Tokenizer {
                 if (info.token != null) {
                     switch (info.token.tag) {
                         case types_1.TokenTag.WORD:
-                            if (isAlphanumeric(c)) {
+                            if ((0, helpers_1.isAlphanumeric)(c)) {
                                 info.chunk += c;
                                 info.pos.col += 1;
                                 info.pos.idx += 1;
@@ -123,7 +124,7 @@ class Tokenizer {
                                 }
                                 else if (tag === types_1.TokenTag.END) {
                                     if (info.contexts.length <= 1) {
-                                        throw info.makeError(`Unmatched token: ${addQuotes(info.chunk)}`);
+                                        throw info.makeError(`Unmatched token: ${(0, helpers_1.addQuotes)(info.chunk)}`);
                                     }
                                     info.contexts.pop();
                                     info.ignoreLineBreaks = info.contexts[info.contexts.length - 1];
@@ -134,7 +135,7 @@ class Tokenizer {
                             }
                             break;
                         case types_1.TokenTag.SYMBOL:
-                            if (isSymbol(c)) {
+                            if ((0, helpers_1.isSymbol)(c)) {
                                 info.chunk += c;
                                 info.pos.col += 1;
                                 info.pos.idx += 1;
@@ -177,14 +178,14 @@ class Tokenizer {
                             if ((start === '(' && end !== ')') ||
                                 (start === '[' && end !== ']') ||
                                 (start === '{' && end !== '}')) {
-                                throw info.makeError(`Unmatched bracket: ${addQuotes(start)} -> ${addQuotes(end)}`);
+                                throw info.makeError(`Unmatched bracket: ${(0, helpers_1.addQuotes)(start)} -> ${(0, helpers_1.addQuotes)(end)}`);
                             }
                             foundBracket = true;
                             break;
                         }
                     }
                     if (!foundBracket || info.contexts.length <= 1) {
-                        throw info.makeError(`Unmatched bracket: ${addQuotes(c)}`);
+                        throw info.makeError(`Unmatched bracket: ${(0, helpers_1.addQuotes)(c)}`);
                     }
                     info.contexts.pop();
                     info.ignoreLineBreaks = info.contexts[info.contexts.length - 1];
@@ -194,16 +195,16 @@ class Tokenizer {
                         pos: info.copyPos(),
                     });
                 }
-                else if (isAlphanumeric(c)) {
+                else if ((0, helpers_1.isAlphanumeric)(c)) {
                     info.token = { tag: types_1.TokenTag.WORD };
                     info.chunk = c;
                 }
-                else if (isSymbol(c)) {
+                else if ((0, helpers_1.isSymbol)(c)) {
                     info.token = { tag: types_1.TokenTag.SYMBOL };
                     info.chunk = c;
                 }
-                else if (!isWhitespace(c)) {
-                    throw info.makeError(`Unexpected token: ${addQuotes(c)}`);
+                else if (!(0, helpers_1.isWhitespace)(c)) {
+                    throw info.makeError(`Unexpected token: ${(0, helpers_1.addQuotes)(c)}`);
                 }
                 info.pos.col += 1;
                 info.pos.idx += 1;
@@ -271,17 +272,5 @@ function tokenizeFile(filename, encoding = 'utf8') {
     const stream = node_fs_1.default.createReadStream(filename);
     stream.setEncoding(encoding);
     return tokenizer.tokenizeStream(stream);
-}
-function isWhitespace(s) {
-    return /^\s+$/.test(s);
-}
-function isAlphanumeric(s) {
-    return /^\w+$/.test(s);
-}
-function isSymbol(s) {
-    return /^[~!@#$%^&*-+=\\|,<.>/?]+$/.test(s);
-}
-function addQuotes(s) {
-    return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/^|$/g, '"');
 }
 //# sourceMappingURL=tokenizer.js.map
