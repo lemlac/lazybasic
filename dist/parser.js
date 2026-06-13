@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Parser = exports.ParsingError = void 0;
-exports.parse = parse;
+exports.parseTokens = parseTokens;
 const types_1 = require("./types");
 const helpers_1 = require("./helpers");
 class ParsingError extends Error {
@@ -36,6 +36,20 @@ const ops = new Map([
     ['*=', types_1.Op.SET_MULTIPLY],
     ['/=', types_1.Op.SET_DIVIDE],
 ]);
+const prefixOps = new Map([
+    ['+', types_1.Op.POS],
+    ['-', types_1.Op.NEG],
+    ['not', types_1.Op.NOT],
+    ['bnot', types_1.Op.B_NOT],
+]);
+// a + b * c
+// (a + (b * c))
+// (+ a b) * c
+// (+ a (* b c))
+// a + - b * c
+// (+ a -) b * c
+// (+ a (- _ b)) * c
+// (* (+ a (- _ b)) c)
 class Parser {
     constructor(tokens, filename) {
         this.tokens = tokens;
@@ -51,14 +65,28 @@ class Parser {
     parsePart(i, tag) {
         let { tokens, filename } = this;
         let ret = [];
-        for (; i < tokens.length; i++) {
+        loop: for (; i < tokens.length; i++) {
             let info = tokens[i];
             switch (info.tag) {
                 case types_1.TokenTag.SYMBOL:
                     {
                         let symbol = info.symbol ?? '';
                         let pos = info.pos;
-                        for (let next of this.splitSymbols(symbol, pos)) {
+                        let isPrefix = ret.length <= 0;
+                        let prev;
+                        if (!isPrefix) {
+                            prev = ret[ret.length - 1];
+                            if (prev.tag === types_1.TokenTag.OP && prev.rhs == null) {
+                                isPrefix = true;
+                            }
+                        }
+                        let ops = Array.from(this.splitSymbols(symbol, pos, isPrefix));
+                        if (!isPrefix) {
+                            let infix;
+                            [infix, ...ops] = ops;
+                            ret.push(infix);
+                        }
+                        for (let next of ops) {
                             ret.push(next);
                         }
                     }
@@ -79,11 +107,22 @@ class Parser {
                         });
                     }
                     break;
+                case types_1.TokenTag.LINE_BREAK:
+                    {
+                        if (ret.length > 0) {
+                            let prev = ret[ret.length - 1];
+                            if (prev.tag === types_1.TokenTag.LINE_BREAK) {
+                                continue;
+                            }
+                        }
+                        ret.push(info);
+                    }
+                    break;
                 case types_1.TokenTag.B_END:
                     if (tag !== types_1.TokenTag.B_SEQUENCE) {
                         throw new ParsingError(`Unexpected bracket end`, info.pos, filename);
                     }
-                    return [i, ret];
+                    break loop;
                 case types_1.TokenTag.FUNCTION:
                     {
                         let name;
@@ -123,20 +162,26 @@ class Parser {
                     if (tag !== types_1.TokenTag.FUNCTION) {
                         throw new ParsingError(`Unexpected body end`, info.pos, filename);
                     }
-                    return [i, ret];
+                    break loop;
                 default:
                     ret.push(info);
             }
         }
+        while (ret.length > 0 && ret[0].tag === types_1.TokenTag.LINE_BREAK) {
+            ret.splice(0, 1);
+        }
+        while (ret.length > 0 && ret[ret.length - 1].tag === types_1.TokenTag.LINE_BREAK) {
+            ret.splice(ret.length - 1, 1);
+        }
         return [i, ret];
     }
-    *splitSymbols(symbol, pos) {
+    *splitSymbols(symbol, pos, isPrefix = false) {
         let spill = '';
         let line = pos.line;
         let col = pos.col;
         let idx = pos.idx;
         while (symbol.length > 0) {
-            let op = ops.get(symbol);
+            let op = (isPrefix ? prefixOps : ops).get(symbol);
             if (op != null) {
                 yield {
                     tag: types_1.TokenTag.OP,
@@ -146,6 +191,7 @@ class Parser {
                 col += symbol.length;
                 idx += symbol.length;
                 symbol = spill;
+                isPrefix = true;
             }
             else {
                 spill = symbol.charAt(-1) + spill;
@@ -158,7 +204,7 @@ class Parser {
     }
 }
 exports.Parser = Parser;
-function parse(tokens, filename) {
+function parseTokens(tokens, filename) {
     return new Parser(tokens, filename).parse();
 }
 //# sourceMappingURL=parser.js.map

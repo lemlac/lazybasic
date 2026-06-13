@@ -26,6 +26,8 @@ export enum Op {
     MULTIPLY = "MULTIPLY",
     DIVIDE = "DIVIDE",
     MODULO = "MODULO",
+    POS = "POS",
+    NEG = "NEG",
     EQ = "EQ",
     NEQ = "NEQ",
     LT = "LT",
@@ -62,19 +64,13 @@ export type Token =
     | { tag: TokenTag.B_END, bracketEnd?: ')'|']'|'}' }
     | { tag: TokenTag.B_SEQUENCE, bracket?: BracketType, sequrence?: TokenWithTracking[] }
     | { tag: TokenTag.FUNCTION, name?: string, body?: TokenWithTracking[] }
-    | { tag: TokenTag.OP, op?: Op, lhs?: Token, rhs?: Token }
+    | { tag: TokenTag.OP, op?: Op, lhs?: TokenWithTracking, rhs?: TokenWithTracking }
     | { tag: TokenTag.END | TokenTag.RETURN | TokenTag.PARAMETER | TokenTag.LINE_BREAK }
-
-export type TokenWithTracking = Token & {
-    pos: {
-        line: number,
-        col: number,
-        idx: number,
-    },
-};
 
 export type Position = {
     line: number,
     col: number,
     idx: number,
 };
+
+export type TokenWithTracking = Token & { pos: Position };

@@ -1,12 +1,16 @@
 import type { TokenWithTracking } from './types';
 
 import { tokenize, tokenizeStream, tokenizeFile } from './tokenizer';
-import { parse } from './parser';
+import { parseTokens } from './parser';
 
-export { tokenize, tokenizeStream, tokenizeFile, parse };
+export { tokenize, tokenizeStream, tokenizeFile, parseTokens };
+
+export function parse(input: string): TokenWithTracking[] {
+    return parseTokens(tokenize(input));
+}
 
 export async function parseFile(filename: string): Promise<TokenWithTracking[]> {
-    return parse(await tokenizeFile(filename), filename);
+    return parseTokens(await tokenizeFile(filename), filename);
 }
 
 export async function parseFileAndPrint(filename: string): Promise<void> {

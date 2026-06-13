@@ -30,6 +30,8 @@ var Op;
     Op["MULTIPLY"] = "MULTIPLY";
     Op["DIVIDE"] = "DIVIDE";
     Op["MODULO"] = "MODULO";
+    Op["POS"] = "POS";
+    Op["NEG"] = "NEG";
     Op["EQ"] = "EQ";
     Op["NEQ"] = "NEQ";
     Op["LT"] = "LT";

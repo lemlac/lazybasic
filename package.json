@@ -11,7 +11,8 @@
     "start": "node dist/index.js",
     "dev": "nodemon --exec ts-node src/index.ts",
     "watch": "tsc -w",
-    "test": "jest --config jest.config.js"
+    "test": "jest",
+    "test:watch": "jest --watch"
   },
   "repository": {
     "type": "git",
@@ -26,7 +27,11 @@
   },
   "homepage": "https://github.com/lemlac/lazybasic#readme",
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/node": "^25.9.3",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.11",
+    "ts-node": "^10.9.2",
     "typescript": "^6.0.3"
   }
 }
