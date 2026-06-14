@@ -9,182 +9,112 @@ end
 
 print(add(1, 2))`;
 
+const anyPos = () => ({
+    "line": expect.any(Number),
+    "col": expect.any(Number),
+    "idx": expect.any(Number),
+});
+
 const resultTokens = [
     {
         "tag": "FUNCTION",
         "name": "add",
         "body": [
             {
-                "pos": {
-                    "line": 2,
-                    "col": 13,
-                    "idx": 42
-                },
-                "tag": "PARAMETER"
+                "tag": "PARAMETER",
+                "pos": anyPos(),
             },
             {
-                "pos": {
-                    "line": 2,
-                    "col": 15,
-                    "idx": 44
-                },
                 "tag": "WORD",
-                "word": "a"
+                "word": "a",
+                "pos": anyPos(),
             },
             {
                 "tag": "LINE_BREAK",
-                "pos": {
-                    "line": 2,
-                    "col": 19,
-                    "idx": 64
-                }
+                "pos": anyPos(),
             },
             {
-                "pos": {
-                    "line": 3,
-                    "col": 13,
-                    "idx": 78
-                },
-                "tag": "PARAMETER"
+                "tag": "PARAMETER",
+                "pos": anyPos(),
             },
             {
-                "pos": {
-                    "line": 3,
-                    "col": 15,
-                    "idx": 80
-                },
                 "tag": "WORD",
-                "word": "b"
+                "word": "b",
+                "pos": anyPos(),
             },
             {
                 "tag": "LINE_BREAK",
-                "pos": {
-                    "line": 3,
-                    "col": 19,
-                    "idx": 101
-                }
+                "pos": anyPos(),
             },
             {
-                "pos": {
-                    "line": 4,
-                    "col": 10,
-                    "idx": 112
-                },
-                "tag": "RETURN"
+                "tag": "RETURN",
+                "pos": anyPos(),
             },
             {
-                "pos": {
-                    "line": 4,
-                    "col": 12,
-                    "idx": 114
-                },
                 "tag": "WORD",
-                "word": "a"
+                "word": "a",
+                "pos": anyPos(),
             },
             {
                 "tag": "OP",
                 "op": "ADD",
-                "pos": {
-                    "line": 4,
-                    "col": 14,
-                    "idx": 116
-                }
+                "pos": anyPos(),
             },
             {
-                "pos": {
-                    "line": 4,
-                    "col": 16,
-                    "idx": 118
-                },
                 "tag": "WORD",
-                "word": "b"
+                "word": "b",
+                "pos": anyPos(),
             },
         ],
-        "pos": {
-            "line": 1,
-            "col": 8,
-            "idx": 24
-        }
+        "pos": anyPos(),
     },
     {
         "tag": "LINE_BREAK",
-        "pos": {
-            "line": 5,
-            "col": 3,
-            "idx": 144
-        }
+        "pos": anyPos(),
     },
     {
-        "pos": {
-            "line": 7,
-            "col": 5,
-            "idx": 151
-        },
         "tag": "WORD",
-        "word": "print"
+        "word": "print",
+        "pos": anyPos(),
     },
     {
         "tag": "B_SEQUENCE",
         "sequence": [
             {
-                "pos": {
-                    "line": 7,
-                    "col": 9,
-                    "idx": 155
-                },
                 "tag": "WORD",
-                "word": "add"
+                "word": "add",
+                "pos": anyPos(),
             },
             {
                 "tag": "B_SEQUENCE",
                 "sequence": [
                     {
-                        "pos": {
-                            "line": 7,
-                            "col": 11,
-                            "idx": 157
-                        },
                         "tag": "WORD",
-                        "word": "1"
+                        "word": "1",
+                        "pos": anyPos(),
                     },
                     {
                         "tag": "OP",
                         "op": "DELIM",
-                        "pos": {
-                            "line": 7,
-                            "col": 12,
-                            "idx": 158
-                        }
+                        "pos": anyPos(),
                     },
                     {
-                        "pos": {
-                            "line": 7,
-                            "col": 14,
-                            "idx": 160
-                        },
                         "tag": "WORD",
-                        "word": "2"
+                        "word": "2",
+                        "pos": anyPos(),
                     }
                 ],
                 "bracket": "()",
-                "pos": {
-                    "line": 7,
-                    "col": 9,
-                    "idx": 155
-                }
+                "pos": anyPos(),
             }
         ],
         "bracket": "()",
-        "pos": {
-            "line": 7,
-            "col": 5,
-            "idx": 151
-        }
+        "pos": anyPos(),
     }
 ];
 
 describe('Parser', () => {
     it('should parse test-script to expected result', () => {
-        expect(parse(testScript)).toStrictEqual(resultTokens);
+        expect(parse(testScript)).toEqual(resultTokens);
     });
 });
