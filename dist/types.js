@@ -24,7 +24,7 @@ var Op;
     Op["INDEX"] = "INDEX";
     Op["CALL"] = "CALL";
     Op["DELIM"] = "DELIM";
-    Op["KEY_DELIM"] = "DELIM";
+    Op["KEY_DELIM"] = "KEY_DELIM";
     Op["ADD"] = "ADD";
     Op["SUBTRACT"] = "SUBTRACT";
     Op["MULTIPLY"] = "MULTIPLY";

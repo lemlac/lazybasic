@@ -20,7 +20,7 @@ export enum Op {
     INDEX = "INDEX",
     CALL = "CALL",
     DELIM = "DELIM",
-    KEY_DELIM = "DELIM",
+    KEY_DELIM = "KEY_DELIM",
     ADD = "ADD",
     SUBTRACT = "SUBTRACT",
     MULTIPLY = "MULTIPLY",
@@ -62,7 +62,7 @@ export type Token =
     | { tag: TokenTag.STRING_LITERAL, string?: string }
     | { tag: TokenTag.B_START, bracketStart?: '('|'['|'{' }
     | { tag: TokenTag.B_END, bracketEnd?: ')'|']'|'}' }
-    | { tag: TokenTag.B_SEQUENCE, bracket?: BracketType, sequrence?: TokenWithTracking[] }
+    | { tag: TokenTag.B_SEQUENCE, bracket?: BracketType, sequence?: TokenWithTracking[] }
     | { tag: TokenTag.FUNCTION, name?: string, body?: TokenWithTracking[] }
     | { tag: TokenTag.OP, op?: Op, lhs?: TokenWithTracking, rhs?: TokenWithTracking }
     | { tag: TokenTag.END | TokenTag.RETURN | TokenTag.PARAMETER | TokenTag.LINE_BREAK }

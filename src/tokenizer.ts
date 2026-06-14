@@ -256,7 +256,7 @@ export class Tokenizer {
             }
 
             if (this.contexts.length != 1) {
-                throw info.makeError(`Unexepected end of script`);
+                throw info.makeError(`Unexpected end of script`);
             }
 
             return info.tokens;

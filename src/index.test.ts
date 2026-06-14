@@ -125,7 +125,7 @@ const resultTokens = [
     },
     {
         "tag": "B_SEQUENCE",
-        "sequrence": [
+        "sequence": [
             {
                 "pos": {
                     "line": 7,
@@ -137,7 +137,7 @@ const resultTokens = [
             },
             {
                 "tag": "B_SEQUENCE",
-                "sequrence": [
+                "sequence": [
                     {
                         "pos": {
                             "line": 7,

@@ -103,13 +103,13 @@ export class Parser {
                     }
                 } break;
                 case TokenTag.B_START: {
-                    let sequrence: TokenWithTracking[];
+                    let sequence: TokenWithTracking[];
                     let tag = TokenTag.B_SEQUENCE;
                     i++;
-                    [i, sequrence] = this.parsePart(i, tag);
+                    [i, sequence] = this.parsePart(i, tag);
                     ret.push({
                         tag,
-                        sequrence,
+                        sequence,
                         bracket:
                             info.bracketStart === '(' ? BracketType.ROUND : 
                             info.bracketStart === '[' ? BracketType.SQUARE : 
@@ -198,7 +198,7 @@ export class Parser {
                 symbol = spill;
                 isPrefix = true;
             } else {
-                spill = symbol.charAt(-1) + spill;
+                spill = symbol[symbol.length-1] + spill;
                 symbol = symbol.slice(0, -1);
             }
         }
